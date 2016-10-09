@@ -9,6 +9,11 @@ var MARGINWIDTH = 5;
 var BORDERWIDTH = 20;
 var LINEWIDTH = 2;
 
+var language = ((window.navigator.languages && window.navigator.languages[0]) ||
+            window.navigator.language ||
+            window.navigator.userLanguage ||
+            window.navigator.browserLanguage).toLowerCase().substr(0,2);
+
 var initialboard = [
 	[0, 0, 0, 0, 0, 0],
 	[0, 0, 0, 0, 0, 0],
@@ -32,21 +37,11 @@ function Move(blockid, direction, distance) {
 	this._distance = distance;
 }
 
-/*
-	ボード上の状況
-	0: 空き
-	1: ターゲットブロックの左
-	2: 横2マスブロックの左
-	3: 横3マスブロックの左
-	4: 縦2マスブロックの上
-	5: 縦3マスブロックの上
-	6: 右・下・中
-*/
 function drawboard(cvname, title, board) {
 	var cv = document.getElementById(cvname);
 	var ctx = cv.getContext('2d');
 
-	// 外枠を描画
+	// draw outer frame
 	ctx.beginPath();
 	ctx.strokeStyle = '#000000';
 	ctx.fillStyle = '#F4A460';
@@ -68,13 +63,13 @@ function drawboard(cvname, title, board) {
 	ctx.stroke();
 	ctx.fill()
 
-	// ボード内部をクリア
+	// clear board interior
 	ctx.beginPath();
 	ctx.fillStyle = '#FFFFFF';
 	ctx.fillRect(MARGINWIDTH + BORDERWIDTH + LINEWIDTH, MARGINWIDTH + BORDERWIDTH + LINEWIDTH, BLOCKSIZE * 6, BLOCKSIZE * 6);
 
 
-	// ブロックを描画
+	// draw blocks
 	for (var y = 0; y < 6; y++) {
 		for (var x = 0; x < 6; x++) {
 			var width = 0;
@@ -152,7 +147,7 @@ function drawboard(cvname, title, board) {
 }
 
 function drawresult(index, board) {
-	// 結果を１ステップ描画する
+	// draw result (1 step)
 	var cv = document.createElement('canvas');
 	cv.id = 'cv' + index;
 	cv.height = MARGINWIDTH * 2 + BORDERWIDTH * 2 + BLOCKSIZE * 6 + LINEWIDTH * 2;
@@ -179,7 +174,7 @@ function drawinitial(board) {
 }
 
 function copyblocks(blocks) {
-	// ブロックリストをディープコピー
+	// deep copy a block list
 	var newblocks = [];
 	for (var i = 0; i < blocks.length; i++) {
 		newblocks.push(new Block(blocks[i]._x, blocks[i]._y, blocks[i]._horz, blocks[i]._size, blocks[i]._kind));
@@ -226,7 +221,7 @@ function board2str(board) {
 
 
 function solve(initboard) {
-	// パズルを解く
+	// solve the puzzle
 	var visited = {};
 	var queue = [];
 	var blocks = [];
@@ -244,30 +239,30 @@ function solve(initboard) {
 		}
 	}
 
-	// 初期状態をキューに追加
+	// push the initial state into the queue
 	queue.push([new Move(-1, -1, -1), blocks]);
 
-	// キューから状態を取り出して処理する
+	// process states in the queue
 	while (queue.length > 0) {
 		var state = queue.shift();
 		var move = state[0];
 		var blocks = state[1];
 
-		// ブロックリストからボード状態を復元
+		// generate board status from block list
 		var board = blocks2board(blocks);
 		var boardstate = board2str(board);
 
-		// すでにチェック済みのボード状態か？
+		// already checked state?
 		if (boardstate in visited) {
 			continue;
 		}
 
-		// move の操作によって boardstate になった
+		// 'move' causing the current boardstate
 		visited[boardstate] = move;
 
-		// クリアしたか？
+		// puzzle solved?
 		if (board[2][4] == 1) {
-			// クリア状態のターゲットブロックを一個右にずらす
+			// move the target block to the right (1 step)
 			blocks[move._blockid]._x += 1;
 			move._distance += 1;
 			board[2][4] = 0;
@@ -275,26 +270,24 @@ function solve(initboard) {
 
 			var solution = [];
 
-			// クリアから初期状態までのボード状態を逆にたどる
 			while (true) {
-				// 一個前の状態から現在の状態への遷移を表現する
 				switch (move._direction) {
-				case 1:	// 左移動
+				case 1:	
 					for (var x = 0; x < move._distance; x++) {
 						board[blocks[move._blockid]._y][blocks[move._blockid]._x + blocks[move._blockid]._size + x] ='<';
 					}
 					break;
-				case 2:	// 右移動
+				case 2:	
 					for (var x = 1; x <= move._distance; x++) {
 						board[blocks[move._blockid]._y][blocks[move._blockid]._x - x] ='>';
 					}
 					break;
-				case 3:	// 上移動
+				case 3:	
 					for (var y = 0; y < move._distance; y++) {
 						board[blocks[move._blockid]._y + blocks[move._blockid]._size + y][blocks[move._blockid]._x] ='^';
 					}
 					break;
-				case 4:	// 下移動
+				case 4:	
 					for (var y = 1; y <= move._distance; y++) {
 						board[blocks[move._blockid]._y - y][blocks[move._blockid]._x] ='_';
 					}
@@ -309,7 +302,6 @@ function solve(initboard) {
 					break;
 				}
 
-				// 一個前のブロック状態を生成
 				switch (move._direction) {
 				case 1: blocks[move._blockid]._x += move._distance; break;
 				case 2: blocks[move._blockid]._x -= move._distance; break;
@@ -321,7 +313,12 @@ function solve(initboard) {
 				move = visited[board2str(board)];
 			}
 
-			document.getElementById('message').innerHTML = (solution.length - 1) + ' ステップでクリア！( *｀ω´)ドヤッ';
+			if (language == 'ja') {
+				document.getElementById('message').innerHTML = (solution.length - 1) + ' ステップでクリア！( *｀ω´)ドヤッ';
+			}
+			else {
+				document.getElementById('message').innerHTML = 'Solved in ' + (solution.length - 1) + ' steps :)';
+			}
 
 			var index = 0;
 			while (solution.length > 0) {
@@ -333,10 +330,9 @@ function solve(initboard) {
 			return;
 		}
 
-		// 現在の状態から遷移可能な状態を queue に追加
 		for (var i = 0; i < blocks.length; i++) {
 			if (blocks[i]._horz) {
-				// 左に移動可能か?
+				// can move to the left?
 				for (var dist = 1; dist < 6; dist++) {
 					var x = blocks[i]._x - dist;
 					if (x >= 0 && board[blocks[i]._y][x] == 0) {
@@ -348,7 +344,7 @@ function solve(initboard) {
 						break;
 					}
 				}
-				// 右に移動可能か?
+				// can move to the right?
 				for (var dist = 1; dist < 6; dist++) {
 					var x = blocks[i]._x + blocks[i]._size + dist - 1;
 					if (x < 6 && board[blocks[i]._y][x] == 0) {
@@ -362,7 +358,7 @@ function solve(initboard) {
 				}
 			}
 			else{
-				// 上に移動可能か?
+				// can move upward?
 				for (var dist = 1; dist < 6; dist++) {
 					var y = blocks[i]._y - dist;
 					if (y >= 0 && board[y][blocks[i]._x] == 0) {
@@ -374,7 +370,7 @@ function solve(initboard) {
 						break;
 					}
 				}
-				// 下に移動可能か?
+				// can move downward?
 				for (var dist = 1; dist < 6; dist++) {
 					var y = blocks[i]._y + blocks[i]._size + dist - 1;
 					if (y < 6 && board[y][blocks[i]._x] == 0) {
@@ -390,7 +386,12 @@ function solve(initboard) {
 		}
 	}
 
-	document.getElementById('message').innerHTML = 'クリアできんがな (´・ω・｀)';
+	if (language == 'ja') {
+		document.getElementById('message').innerHTML = 'クリアできんがな (´・ω・｀)';
+	}
+	else {
+		document.getElementById('message').innerHTML = 'Cannot solve :(';
+	}
 }
 
 function clearboard() {
@@ -552,19 +553,38 @@ function canvasclick(e) {
 	}
 }
 
-document.addEventListener('DOMContentLoaded', function() { drawinitial(board2str(initialboard)); drawselection();}, false);
+function drawdirection() {
+	if (language == 'ja') {
+		direction = '<ul>' +
+			'<li>右側からブロックを選択して左のエリア内に配置してください。' +
+			'<li>ブロックを配置するには、置きたい位置の一番左または一番上のマスをクリックします。' +
+			'<li>左側エリアの配置済みブロックをクリックすると削除します。' +
+			'</ul>';
+		buttons = "<input type='button' value='クリア' onclick='clearboard();'>&nbsp;" +
+			"<input type='button' value='解答' onclick='startsolve();'>";
+	}
+	else {
+		direction = '<ul>' +
+			'<li>Select a block from the right to place in the board area.' +
+			'<li>Click the left-most/upper-most position to place a block.' +
+			'<li>Click a block already placed in the board area to remove it.' +
+			'</ul>';
+		buttons = "<input type='button' value='Clear' onclick='clearboard();'>&nbsp;" +
+			"<input type='button' value='Solve' onclick='startsolve();'>";
+	}
+
+	document.getElementById('direction').innerHTML = direction;
+	document.getElementById('buttons').innerHTML = buttons;
+}
+
+document.addEventListener('DOMContentLoaded', function() { drawdirection(); drawinitial(board2str(initialboard)); drawselection();}, false);
 </script>
 </head>
 <body>
 <h1>Block Solver</h1>
-<ul>
-<li>右側からブロックを選択して左のエリア内に配置してください。
-<li>ブロックを配置するには、置きたい位置の一番左または一番上のマスをクリックします。
-<li>左側エリアの配置済みブロックをクリックすると削除します。
-</ul>
+<div id='direction'></div>
 <div id='initial'></div>
-<input type='button' value='クリア' onclick='clearboard();'>
-<input type='button' value='解答' onclick='startsolve();'>
+<div id='buttons'></div>
 <div id='message'></div>
 <div id='result'></div>
 </body>
